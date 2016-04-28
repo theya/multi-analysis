@@ -1,0 +1,193 @@
+---
+title: "Statistical inference on ToothGrowth dataset"
+author: "Molina Rafidison"
+date: "10 Mar 2016"
+output: pdf_document
+---
+
+# Report
+
+## Preliminaries
+
+### Synopsis
+
+Here we are going to analyze the ToothGrowth data, provided in the R `datasets` package. We want to investigate about how Vitamin C is related to tooth growth Guinea pig. The documentation is available [here](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/ToothGrowth.html).
+
+### Packages
+
+Load needed packages.
+
+```{r, message = FALSE, results = 'hide'}
+packages <- c("datasets", "dplyr", "ggplot2")
+sapply(packages, require, character.only = TRUE, quietly = TRUE)
+```
+
+### Getting and cleaning data
+
+Load the dataset from the `datasets` package.
+
+```{r}
+data(ToothGrowth); str(ToothGrowth)
+```
+
+The documentation says that there are 3 dose levels of Vitamin C (0.5, 1.0 and 2.0) so let us convert it into a factor.
+
+```{r}
+ToothGrowth$dose <- as.factor(ToothGrowth$dose)
+```
+
+## Exploratory data analysis
+
+### Length
+
+Look at how the odontoblasts respond in length to Vitamin C doses and types *(cf. Appendix Fig. 1)*.
+
+```{r fig1, echo = FALSE, fig.keep = 'none'}
+ggplot(ToothGrowth, aes(x = supp, y = len)) +
+    geom_boxplot(aes(fill = supp)) +
+    facet_wrap( ~ dose) +
+    labs(title = "Fig. 1: Length of Guinea pig odontoblasts according to Vitamin C",
+         x = "Supplement type",
+         y = "Length of odontoblasts") +
+    scale_fill_discrete(guide = FALSE) +
+    theme(text = element_text(size = 7))
+```
+
+The length increases along with the dosage. It seems like the orange juice is more efficient than the ascorbic acid (VC) until the dose level attains 2 mg/day.
+
+### Summary
+
+Here is a basic summary of the data.
+
+```{r}
+summary(ToothGrowth)
+```
+
+Then we provide a summary of the data giving the length mean for each dose level and delivery method for 60 tested Guinea pigs.
+
+```{r}
+by(ToothGrowth$len, INDICES = list(ToothGrowth$supp, ToothGrowth$dose), summary)
+```
+
+## Statistical inference
+
+Given the small sample of 60 Guinea pigs, we will use the t-test in the case of unequal variances for independent samples. It will be run with the independent, categorical variables: `supp` and `dose`.
+
+### Orange juice vs. ascorbic acid
+
+The summary shows a greater length mean of odontoblasts with orange juice than VC.  
+**Null hypothesis: Orange juice and VC have equal length mean of odontoblasts**  
+  
+Compare the length according to the supplement type *(cf. Appendix Test 1)*.
+
+```{r T1, echo = FALSE, results = "hide"}
+## Test 1
+t.test(len ~ supp, data = ToothGrowth)
+```
+
+The p value is statistically not significant given a 5% significance level. Plus, 0 is in the confidence interval.  
+We fail to reject the Null hypothesis and cannot conclude that orange juice is more or less efficient than ascrobic acid.
+
+### High dose vs. low dose levels
+
+The summary shows that the higher the dose, the bigger the cells in mean. We will not compare the dose levels by supplement type as the test above does not valid any conclusion about one being more efficient than the other.  
+**Null hypothesis: Low and high doses have equal length mean of odontoblasts**  
+  
+Compare the length according to the dose levels of Vitamin C 0.5 mg/day and 2 mg/day *(cf. Appendix Test 2)*, then 0.5 mg/day and 1 mg/day *(cf. Appendix Test 3)* and eventually 1 mg/day and 2 mg/day *(cf. Appendix Test 4)*.
+
+```{r T2, echo = FALSE, results = "hide"}
+## Only keep the dose levels .5 and 2 mg/day
+subTG1 <- ToothGrowth %>% filter(dose != 1)
+
+## Test 2
+T1 <- t.test(len ~ dose, data = subTG1)
+print(T1)
+```
+
+```{r T3, echo = FALSE, results = "hide"}
+## Only keep the dose levels .5 and 1 mg/day
+subTG2 <- ToothGrowth %>% filter(dose != 2)
+
+## Test 3
+T2 <- t.test(len ~ dose, data = subTG2)
+print(T2)
+```
+
+```{r T4, echo = FALSE, results = "hide"}
+## Only keep the dose levels 1 and 2 mg/day
+subTG3 <- ToothGrowth %>% filter(dose != .5)
+
+## Test 4
+T3 <- t.test(len ~ dose, data = subTG3)
+print(T3)
+```
+
+Let us summarize the results we obtained *(cf. Appendix, Test summary)* .
+
+```{r testSummary, echo = FALSE}
+summaryTG <- data.frame(doseL = c(0.5, 0.5, 1), 
+                        doseH = c(1, 2, 2),
+                        pValue = c(T1$p.value, T2$p.value, T3$p.value),
+                        lowerBoundCI = c(T1$conf.int[1], T2$conf.int[1], T3$conf.int[1]),
+                        upperBoundCI = c(T1$conf.int[2], T2$conf.int[2], T3$conf.int[2]),
+                        doseLMean = c(T1$estimate[1], T2$estimate[1], T3$estimate[1]),
+                        doseHMean = c(T1$estimate[2], T2$estimate[2], T3$estimate[2]))
+print(summaryTG)
+```
+
+The p value is also statistically significant given a 5% significance level. Plus, 0 is not in the confidence interval.   
+We reject the Null hypothesis and we turn in favor of the alternative hypothesis that suggests that low dose levels has different impacts on length mean than high ones.
+
+## Results
+
+### Conclusions
+
+The hypothesis and tests allow two conclusions:  
+- The dose level of Vitamin C has an impact on the length of the odontoblasts: the higher the dose, the higher the mean;  
+- There is no evidence that one delivery method - or supplement type - is more efficient than the other: orange juice cannot be considered as being more powerful than ascorbic acid (VC).  
+
+### Assumptions
+
+For this conclusions to be consistent with the population, we need to make sure:  
+- The sample of these 60 Guinea pigs is representative of the Guinea pig population;  
+- They were randomly selected;  
+- The difference in the length of odontoblasts due to the delivery of Vitamin C is significant compared to the natural variation;  
+- The delivery method was made in good conditions.  
+
+\pagebreak
+  
+# Appendix
+
+Find below the supporting code and figures related to the Report part.
+
+## Figure
+
+```{r, ref.label = 'fig1', results = 'markup', fig.align = 'center', fig.width = 5, fig.height = 3}
+```
+
+## Supporting code
+
+### Test 1
+
+```{r, ref.label = 'T1', results = 'markup'}
+```
+
+### Test 2
+
+```{r, ref.label = 'T2', results = 'markup'}
+```
+
+### Test 3
+
+```{r, ref.label = 'T3', results = 'markup'}
+```
+
+### Test 4
+
+```{r, ref.label = 'T4', results = 'markup'}
+```
+
+### Test summary
+
+```{r, ref.label = 'testSummary', results = 'hide'}
+```

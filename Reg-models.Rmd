@@ -1,0 +1,160 @@
+---
+title: "Regression models on Motor Trend cars dataset"
+author: "Molina Rafidison"
+date: "11 Apr 2016"
+output: pdf_document
+---
+
+# Report
+
+## Introduction
+
+Looking at a data set of a collection of cars, we are interested in exploring the relationship between a set of variables and miles per gallon (MPG). We are particularly interested in the following two questions:
+
+- “Is an automatic or manual transmission better for MPG?”
+- "Quantifying the MPG difference between automatic and manual transmissions"
+
+
+## Exploratory data analysis
+
+First load the needed packages which are datasets, ggplot2 and gridExtra.
+
+```{r, echo = FALSE, message = FALSE, results = 'hide'}
+packages <- c("datasets", "ggplot2", "gridExtra")
+sapply(packages, require, character.only = TRUE, quietly = TRUE)
+```
+
+Load the dataset from the `datasets` package and look at the basic information.
+
+```{r, echo = FALSE, message = FALSE}
+data(mtcars); head(mtcars, 3)
+```
+
+Look at the visual relationships of weight and acceleration on mileage per gallon according to transmission on Fig. 0 *(cf. Appendix Fig. 0)*.
+
+```{r fig0, echo = FALSE, fig.keep = 'none'}
+wtPlot <- ggplot(mtcars, aes(x = wt, y = mpg)) +
+    geom_point(aes(color = am)) +
+    labs(title = "Miles/gallon versus weight \n according to transmission",
+         x = "Weight (in K lbs)",
+         y = "Miles/gallon") +
+    scale_fill_discrete(guide = FALSE) +
+    theme(text = element_text(size = 7))
+
+qsecPlot <- ggplot(mtcars, aes(x = qsec, y = mpg)) +
+    geom_point(aes(color = am)) +
+    labs(title = "Miles/gallon versus 1/4 mile time \n according to transmission",
+         x = "Time to reach 1/4 mile (in sec)",
+         y = "Miles/gallon") +
+    scale_fill_discrete(guide = FALSE) +
+    theme(text = element_text(size = 7))
+
+grid.arrange(wtPlot, qsecPlot, ncol = 2)
+```
+
+We convert `am` into a factor; it is the variable we are interested in.
+
+```{r}
+mtcars$am <- factor(mtcars$am, labels = c("Auto", "Manual"))
+```
+
+And we plot transmission versus miles per gallon *(cf. Appendix Fig. 1)* to highlight any suspect behavior.
+
+```{r fig1, echo = FALSE, fig.keep = 'none'}
+ggplot(mtcars, aes(x = am, y = mpg, group = am)) +
+    geom_boxplot() +
+    labs(title = "Fig. 1: Miles per gallon versus type of transmission",
+         x = "Transmission",
+         y = "Miles/gallon") +
+    scale_fill_discrete(guide = FALSE) +
+    theme(text = element_text(size = 7))
+```
+
+
+## Statistical inference
+
+From Fig. 1, the manual transmission seems to allow more mileage per gallon than the automatic transmission. We use a t-test.
+
+```{r}
+tTest <- t.test(mpg ~ am, data = mtcars)
+```
+
+```{r, echo = FALSE, message = FALSE}
+print(paste0("P-value: ", tTest$p.value))
+print(paste0(tTest$conf.int))
+```
+
+The p value is statistically significant (< 0.05). Plus, 0 is not in the confidence interval. We reject the Null hypothesis and confirm that automatic transmission allows less mileage per gallon than manual one **without considering any other variable**.
+
+
+## Regression model
+
+We use the linear regression to fit a model, starting with a backward removal method for building the regression model.
+
+```{r}
+stepModel <- summary(step(lm(mpg ~ ., mtcars), trace = 0))
+```
+
+```{r, echo = FALSE, message = FALSE}
+print(paste0("Model: ", stepModel$call[2]))
+print(paste0("Adjusted R-squared: ", stepModel$adj.r.squared))
+```
+
+This method tells us to keep the weight, the quarter mile time and thankfully the transmission. The model is not bad with an adjusted R-squared of 83%.
+
+Test the model to optimize it by adding interaction from the transmission.
+
+```{r}
+fineModel <- lm(mpg ~ (am*wt) + qsec, mtcars)
+```
+
+```{r, echo = FALSE, message = FALSE}
+summary(fineModel)$coef
+print(paste0("Adjusted R-squared: ", summary(fineModel)$adj.r.squared))
+```
+
+We reached a 88% adjusted R-squared that we will check to avoid bias thanks to the residual plots *(cf. Appendix Fig. 2)*.
+
+```{r fig2, echo = FALSE, fig.keep = 'none'}
+par(mfrow = c(2,2))
+plot(fineModel)
+```
+
+What we can say about the plots is that: the Residual vs. Fitted plot shows homoscedasticity that justifies the independance assumption; the residuals are approximately normally distributed according to the Normal Q-Q plot; the line representing the variance is rather constant on the Scale-Location plot; and everything is fine in the Residuals vs. Leverage plot.
+
+
+## Results
+
+### Conclusions
+
+To answer the two questions initally asked:
+
+**Is an automatic or manual transmission better for MPG?**
+We can conclude that choosing the best transmission for mileage per gallon depends on the weight and acceleration of a car.
+
+**Quantify the MPG difference between automatic and manual transmissions**
+Choosing a manual transmission increases the mpg (+10.64 to +17.51) and so does the automatic transmission (+3.82 to +15.62). But the heavier the car, the more mpg decreases - -3.61 to -2.27 every 1,000 lbs - and even more with a manual transmission with -5.34 to -2.94 every 1,000 lbs. And the longer the quarter mile time, the slightly more mpg - +0.76 to +1.27 per second whatever the transmission.
+
+That means that the heavier the cars with a quick acceleration the better thinking about an automatic transmission for better fuel efficiency. Small light cars would have a little bit more efficiency with manual transmission.
+
+\pagebreak
+  
+# Appendix
+
+Find figures related to the Report part.
+
+## Fig. 0
+
+```{r, ref.label = 'fig0', results = 'markup', fig.align = 'center'}
+```
+
+## Fig. 1
+
+```{r, ref.label = 'fig1', results = 'markup', fig.align = 'center', fig.width = 5}
+```
+
+## Fig. 2
+
+```{r, ref.label = 'fig2', results = 'markup', fig.align = 'center', fig.height = 6}
+```
+
